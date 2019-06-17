@@ -281,7 +281,7 @@ barplot(c(0.4444, 0.4296, 0.4889, 0.4667, 0.5852, 0.4296, 0.4667, 0.5037, 0.4370
    xlab="Currency" , names.arg = c("Bitcoin", "Neo", "Eth", "EOS", "Stellar", "Lite", "Verge", "Vert", "Cardano"))
 ```
 
-
+<!-- Decision tree analysis with quantitative response rather than 0 or 1 -->
 ```{r}
 tree = rpart(inbasket~txVolume+activeAddresses+marketcap, data=bitcoin[train,])
 tree2 = rpart(inbasket~txVolume+activeAddresses+marketcap, data=neo[train,])
