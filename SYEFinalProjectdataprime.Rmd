@@ -1,0 +1,171 @@
+---
+title: "SYEFinalProject"
+author: "Tomas Cespedes"
+date: "4/11/2019"
+output: html_document
+---
+
+
+<!-- Import all the datasets -->
+```{r}
+bitcoin <- read.csv("Initial_Data/bitcoin.csv")
+cardano <- read.csv("Initial_Data/cardano.csv")
+eos <- read.csv("Initial_Data/eos.csv")
+ethereum <- read.csv("Initial_Data/ethereum.csv")
+litecoin <- read.csv("Initial_Data/litecoin.csv")
+neo <- read.csv("Initial_Data/neo.csv")
+stellar <- read.csv("Initial_Data/stellar.csv")
+verge <- read.csv("Initial_Data/verge.csv")
+vertcoin <- read.csv("Initial_Data/vertcoin.csv")
+```
+
+<!-- Prime all the data to suit our needs -->
+<!-- Add a column length 540 (number of observations we have) with 0 (not included) values to each data set -->
+```{r}
+bitcoin[,"inbasket"] = data.frame(matrix(0, nrow = 540, ncol = 1))
+cardano[,"inbasket"] = data.frame(matrix(0, nrow = 540, ncol = 1))
+eos[,"inbasket"] = data.frame(matrix(0, nrow = 540, ncol = 1))
+ethereum[,"inbasket"] = data.frame(matrix(0, nrow = 540, ncol = 1))
+litecoin[,"inbasket"] = data.frame(matrix(0, nrow = 540, ncol = 1))
+neo[,"inbasket"] = data.frame(matrix(0, nrow = 540, ncol = 1))
+stellar[,"inbasket"] = data.frame(matrix(0, nrow = 540, ncol = 1))
+verge[,"inbasket"] = data.frame(matrix(0, nrow = 540, ncol = 1))
+vertcoin[,"inbasket"] = data.frame(matrix(0, nrow = 540, ncol = 1))
+```
+<!-- If the current day is higher than the previous day, denote as a 1 (means add to basket) -->
+```{r}
+for (i in 2:540) {
+  # Bitcoin day
+  currentday_bit = bitcoin[i,]
+  previousday_bit = bitcoin[i - 1, ]
+  if (currentday_bit$price > previousday_bit$price) {
+    bitcoin[i, ]$inbasket = 1
+  }
+  else if (currentday_bit$price < previousday_bit$price) {
+    bitcoin[i, ]$inbasket = 0
+  }
+  # Cardano day
+  currentday_car = cardano[i, ]
+  previousday_car = cardano[i - 1, ]
+  if (currentday_car$price > previousday_car$price) {
+    cardano[i, ]$inbasket = 1
+  }
+  else if (currentday_car$price < previousday_car$price) {
+    cardano[i, ]$inbasket = 0
+  }
+  # EOS day
+  currentday_eos = eos[i, ]
+  previousday_eos = eos[i - 1, ]
+  if (currentday_eos$price > previousday_eos$price) {
+    eos[i, ]$inbasket = 1
+  }
+  else if (currentday_eos$price < previousday_eos$price) {
+    eos[i, ]$inbasket = 0
+  }
+  #Ethereum day
+  currentday_eth = ethereum[i, ]
+  previousday_eth = ethereum[i - 1, ]
+  if (currentday_eth$price > previousday_eth$price) {
+    ethereum[i, ]$inbasket = 1
+  }
+  else if (currentday_eth$price < previousday_eth$price) {
+    ethereum[i, ]$inbasket = 0
+  }
+  #Litecoin day
+  currentday_ltc = litecoin[i, ]
+  previousday_ltc = litecoin[i - 1, ]
+  if (currentday_ltc$price > previousday_ltc$price) {
+    litecoin[i, ]$inbasket = 1
+  }
+  else if (currentday_ltc$price < previousday_ltc$price) {
+    litecoin[i, ]$inbasket = 0
+  }
+  #Neo day
+  currentday_neo = neo[i, ]
+  previousday_neo = neo[i - 1, ]
+  if (currentday_neo$price > previousday_neo$price) {
+    neo[i, ]$inbasket = 1
+  }
+  else if (currentday_neo$price < previousday_neo$price) {
+    neo[i, ]$inbasket = 0
+  }
+  #Stellar day
+  currentday_stl = stellar[i, ]
+  previousday_stl = stellar[i - 1, ]
+  if (currentday_stl$price > previousday_stl$price) {
+    stellar[i, ]$inbasket = 1
+  }
+  else if (currentday_stl$price < previousday_stl$price) {
+    stellar[i, ]$inbasket = 0
+  }
+  #Verge day
+  currentday_vrg = verge[i, ]
+  previousday_vrg = verge[i - 1, ]
+  if (currentday_vrg$price > previousday_vrg$price) {
+    verge[i, ]$inbasket = 1
+  }
+  else if (currentday_vrg$price < previousday_vrg$price) {
+    verge[i, ]$inbasket = 0
+  }
+  #Vertcoin day
+  currentday_vrt = vertcoin[i, ]
+  previousday_vrt = vertcoin[i - 1, ]
+  if (currentday_vrt$price > previousday_vrt$price) {
+    vertcoin[i, ]$inbasket = 1
+  }
+  else if (currentday_vrt$price < previousday_vrt$price) {
+    vertcoin[i, ]$inbasket = 0
+  }
+}
+
+# Save all the new datasets as files (commented out so didn't rewrite files everytime)
+#write.csv(bitcoin, file="new_bitcoin.csv")
+#write.csv(cardano, file="new_cardano.csv", row.names = FALSE)
+#write.csv(eos, file="new_eos.csv", row.names = FALSE)
+#write.csv(ethereum, file="new_ethereum.csv", row.names = FALSE)
+#write.csv(litecoin, file="new_litecoin.csv", row.names = FALSE)
+#write.csv(neo, file="new_neo.csv", row.names = FALSE)
+#write.csv(stellar, file="new_stellar.csv", row.names = FALSE)
+#write.csv(vertcoin, file="new_vertcoin.csv", row.names = FALSE)
+#write.csv(verge, file="new_verge.csv", row.names = FALSE)
+
+```
+
+
+<!-- Create the final data set for the carts -->
+```{r}
+# Set the column data appropriately
+cryptocart = data.frame(matrix(-1, nrow = 540, ncol = 0))
+cryptocart[, 1] = bitcoin$date
+cryptocart[, 2] = bitcoin$inbasket
+cryptocart[, 3] = cardano$inbasket
+cryptocart[, 4] = eos$inbasket
+cryptocart[, 5] = ethereum$inbasket
+cryptocart[, 6] = litecoin$inbasket
+cryptocart[, 7] = neo$inbasket
+cryptocart[, 8] = stellar$inbasket
+cryptocart[, 9] = verge$inbasket
+cryptocart[, 10] = vertcoin$inbasket
+
+# Update all the column names appropriately 
+names(cryptocart)[1] = "date"
+names(cryptocart)[2] = "bitcoin"
+names(cryptocart)[3] = "cardano"
+names(cryptocart)[4] = "eos"
+names(cryptocart)[5] = "ethereum"
+names(cryptocart)[6] = "litecoin"
+names(cryptocart)[7] = "neo"
+names(cryptocart)[8] = "stellar"
+names(cryptocart)[9] = "verge"
+names(cryptocart)[10] = "vertcoin"
+
+# Save new dataset as a file
+write.csv(cryptocart, file="cryptocart.csv", row.names = FALSE)
+
+```
+
+
+
+
+
+

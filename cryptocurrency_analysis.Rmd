@@ -1,0 +1,309 @@
+---
+title: "Cryptocurrency Analysis"
+author: "Tomas Cespedes"
+date: "4/11/2019"
+output: html_document
+---
+
+<!-- Citations 
+Market Basket:
+https://www.datacamp.com/community/tutorials/market-basket-analysis-r#code
+Data Maniuplation:
+https://stackoverflow.com/questions/10150579/adding-a-column-to-a-data-frame
+Trees:
+https://www.datacamp.com/community/tutorials/decision-trees-R
+-->
+
+<!-- Libraries -->
+```{r}
+set.seed(56)
+
+# INSTALL ALL REQUIRED PACKAGES
+#install.packages("arules")
+#install.packages("arulesViz")
+#install.packages("tidyverse")
+#install.packages("readxml")
+#install.packages("knitr")
+#install.packages("lubridate")
+#install.packages("plyr")
+#install.packages("rpart.plot")
+
+# USE ALL REQUIRED LIBRARIES
+library(arules)
+library(arulesViz)
+library(tidyverse)
+library(readxl)
+library(knitr)
+library(ggplot2)
+library(lubridate)
+library(dplyr)
+library(plyr)
+library(tidyverse)    # data manipulation and visualization
+library(kernlab)      # SVM methodology
+library(e1071)        # SVM methodology
+library(RColorBrewer) # customized coloring of plots
+library(rpart)        # Decision Tree
+library(rpart.plot)   # Decision Tree
+```
+
+<!-- Import all the datasets -->
+```{r}
+bitcoin <- read.csv("New_data/new_bitcoin.csv")
+cardano <- read.csv("New_data/new_cardano.csv")
+eos <- read.csv("New_data/new_eos.csv")
+ethereum <- read.csv("New_data/new_ethereum.csv")
+litecoin <- read.csv("New_data/new_litecoin.csv")
+neo <- read.csv("New_data/new_neo.csv")
+stellar <- read.csv("New_data/new_stellar.csv")
+verge <- read.csv("New_data/new_verge.csv")
+vertcoin <- read.csv("New_data/new_vertcoin.csv")
+cryptocarts = read.csv("cryptocart.csv")
+```
+<!-- Replace all the 1's with the name of the coin for cart purposes -->
+```{r}
+# Bitcoin
+cryptocarts$bitcoin[cryptocarts$bitcoin == 1] = "bitcoin"
+cryptocarts$bitcoin[cryptocarts$bitcoin == 0] = ""
+# Cardano
+cryptocarts$cardano[cryptocarts$cardano == 1] = "cardano"
+cryptocarts$cardano[cryptocarts$cardano == 0] = ""
+# eos
+cryptocarts$eos[cryptocarts$eos == 1] = "eos"
+cryptocarts$eos[cryptocarts$eos == 0] = ""
+# Ethereum
+cryptocarts$ethereum[cryptocarts$ethereum == 1] = "ethereum"
+cryptocarts$ethereum[cryptocarts$ethereum == 0] = ""
+# Litecoin
+cryptocarts$litecoin[cryptocarts$litecoin == 1] = "litecoin"
+cryptocarts$litecoin[cryptocarts$litecoin == 0] = ""
+# Neo
+cryptocarts$neo[cryptocarts$neo == 1] = "neo"
+cryptocarts$neo[cryptocarts$neo == 0] = "neo"
+# Stellar
+cryptocarts$stellar[cryptocarts$stellar == 1] = "stellar"
+cryptocarts$stellar[cryptocarts$stellar == 0] = ""
+# Verge
+cryptocarts$verge[cryptocarts$verge == 1] = "verge"
+cryptocarts$verge[cryptocarts$verge == 0] = ""
+# Vertcoin
+cryptocarts$vertcoin[cryptocarts$vertcoin == 1] = "vertcoin"
+cryptocarts$vertcoin[cryptocarts$vertcoin == 0] = ""
+
+cryptocarts = cryptocarts[, -1]
+write.csv(cryptocarts, file="cartwithnames.csv", row.names = FALSE)
+
+## 75% of the sample size
+smp_size <- floor(0.5 * nrow(cryptocarts))
+
+## set the seed to make your partition reproducible
+train_ind <- sample(seq_len(nrow(cryptocarts)), size = smp_size)
+
+sample1 <- cryptocarts[train_ind, ]
+sample2 <- cryptocarts[-train_ind, ]
+write.csv(sample1, file="cartwithnames_sample1.csv", row.names = FALSE)
+write.csv(sample2, file="cartwithnames_sample2.csv", row.names = FALSE)
+
+
+
+```
+<!-- Read the "transactions from our data" and get a summary -->
+<!-- 
+Since we dont need to do a train/test split for Market basket, I have ran three seperate market baskets. One
+is on the whole data set, the other is on half, and the final is on the last half to see if we see similar results
+across all three. -->
+```{r}
+tr <- read.transactions("cartwithnames.csv", format = 'basket', sep=',')
+tr1 <- read.transactions("cartwithnames_sample1.csv", format = 'basket', sep=',')
+tr2 <- read.transactions("cartwithnames_sample2.csv", format = 'basket', sep=',')
+
+summary(tr)
+summary(tr1)
+summary(tr2)
+```
+<!-- Here we can see how frequent the items appear in the data (number of days we saw an increase in price) -->
+```{r}
+itemFrequencyPlot(tr,topN=9,type="absolute",col=brewer.pal(8,'Pastel2'), main="Absolute Item Frequency Plot")
+itemFrequencyPlot(tr1,topN=9,type="absolute",col=brewer.pal(8,'Pastel2'), main="Absolute Item Frequency Plot")
+itemFrequencyPlot(tr2,topN=9,type="absolute",col=brewer.pal(8,'Pastel2'), main="Absolute Item Frequency Plot")
+
+```
+
+<!--https://discourse.snowplowanalytics.com/t/market-basket-analysis-identifying-products-and-content-that-go-well-together/1132 -->
+<!-- Get the basket rules for each individual sample. We do not want any confidence below 90% or support below 0.10. -->
+```{r}
+basket_rules <- apriori(tr, parameter = list(sup = 0.10, conf = 0.90, target="rules"))
+basket_rules_sample1 <- apriori(tr1, parameter = list(sup = 0.10, conf = 0.90, target="rules"))
+basket_rules_sample2 <- apriori(tr2, parameter = list(sup = 0.10, conf = 0.90, target="rules"))
+```
+```{r}
+inspect(sort(basket_rules, by="lift"))
+inspect(sort(basket_rules_sample1, by="lift"))
+inspect(sort(basket_rules_sample2, by="lift"))
+```
+
+<!-- Plot all the association rules -->
+```{r}
+plot(basket_rules[1:35], method='graph')
+plot(basket_rules_sample1[1:35], method='graph')
+plot(basket_rules_sample2[1:35], method='graph')
+```
+
+<!-- Get a new train test sample for SVM for each individual currency.-->
+```{r}
+set.seed(50)
+## 75% of the sample size
+smp_size <- floor(0.75 * nrow(bitcoin))
+## set the seed to make your partition reproducible
+train <- sample(seq_len(nrow(bitcoin)), size = smp_size)
+
+# Tune all SVM's to have best possible parameters
+tune.out<-tune(svm,factor(inbasket)~txVolume+activeAddresses,data=cardano[train,],kernel="sigmoid",ranges=list(cost=c(0.001,0.01,0.1,1,5,10,100)))
+tune.out2<-tune(svm,factor(inbasket)~txVolume+activeAddresses,data=litecoin[train,],kernel="radial",ranges=list(cost=c(0.001,0.01,0.1,1,5,10,100)))
+tune.out3<-tune(svm,factor(inbasket)~txVolume+activeAddresses,data=neo[train,],kernel="sigmoid",ranges=list(cost=c(0.001,0.01,0.1,1,5,10,100)))
+tune.out4<-tune(svm,factor(inbasket)~txVolume+activeAddresses,data=ethereum[train,],kernel="radial",ranges=list(cost=c(0.001,0.01,0.1,1,5,10,100)))
+tune.out5<-tune(svm,factor(inbasket)~txVolume+activeAddresses,data=bitcoin[train,],kernel="radial",ranges=list(cost=c(0.001,0.01,0.1,1,5,10,100)))
+tune.out6<-tune(svm,factor(inbasket)~txVolume+activeAddresses,data=vertcoin[train,],kernel="radial",ranges=list(cost=c(0.001,0.01,0.1,1,5,10,100)))
+tune.out7<-tune(svm,factor(inbasket)~txVolume+activeAddresses,data=stellar[train,],kernel="sigmoid",ranges=list(cost=c(0.001,0.01,0.1,1,5,10,100)))
+
+summary(tune.out)
+summary(tune.out2)
+summary(tune.out3)
+summary(tune.out4)
+summary(tune.out5)
+summary(tune.out6)
+summary(tune.out7)
+```
+
+<!-- Plot the best model for all our currencies. -->
+```{r}
+best = tune.out$best.model
+best2 = tune.out2$best.model
+best3 = tune.out3$best.model
+best4 = tune.out4$best.model
+best5 = tune.out5$best.model
+best6 = tune.out6$best.model
+best7 = tune.out7$best.model
+plot(best, cardano[train, ], txVolume~activeAddresses)
+plot(best2, litecoin[train, ], txVolume~activeAddresses)
+plot(best3, neo[train, ], txVolume~activeAddresses)
+plot(best4, ethereum[train, ], txVolume~activeAddresses)
+plot(best5, bitcoin[train, ], txVolume~activeAddresses)
+plot(best6, vertcoin[train, ], txVolume~activeAddresses)
+plot(best7, stellar[train, ], txVolume~activeAddresses)
+```
+
+<!-- Misclassification Tables -->
+```{r}
+table(true=cardano[-train,"inbasket"], pred=predict(tune.out$best.model,newdata=cardano[-train,]))
+table(true=litecoin[-train,"inbasket"], pred=predict(tune.out2$best.model,newdata=litecoin[-train,]))
+table(true=neo[-train,"inbasket"], pred=predict(tune.out3$best.model,newdata=neo[-train,]))
+table(true=ethereum[-train,"inbasket"], pred=predict(tune.out4$best.model,newdata=ethereum[-train,]))
+table(true=bitcoin[-train,"inbasket"], pred=predict(tune.out5$best.model,newdata=bitcoin[-train,]))
+table(true=vertcoin[-train,"inbasket"], pred=predict(tune.out6$best.model,newdata=vertcoin[-train,]))
+table(true=stellar[-train,"inbasket"], pred=predict(tune.out7$best.model,newdata=stellar[-train,]))
+```
+Misclassification Rates (Out Of Sample):
+Cardano: 28 + 30 /135 = 0.4296
+Litecoin: 42 + 25 /135 = 0.4222
+Neo: 44 + 20 /135 = 0.4741
+Ethereum: 9 + 55 /135 = 0.4741
+Bitcoin: 61 + 7 /135 = 0.5111
+Vertcoin: 27 + 44 /135 = 0.5259
+Stellar: 34 + 32 /135 = 0.4889
+<!-- Plot for rates -->
+```{r}
+barplot(c(0.4296, 0.4222, 0.4741, 0.4741, 0.5111, 0.5259, 0.4889), ylim=c(0,1), main="Misclassification Rate of SVM", ylab="Rate",
+   xlab="Currency" , names.arg = c("Cardano", "Lite", "Neo", "Eth", "Bitcoin", "Vert", "Stellar"))
+```
+
+<!-- Decision Trees -->
+
+<!-- Some of these do not tell us much -->
+<!-- Treated these as qualitative response, however we can put them as regular response to get actual decimal numbers -->
+```{r}
+tree = rpart(factor(inbasket)~txVolume+activeAddresses+marketcap, data=bitcoin[train,])
+tree2 = rpart(factor(inbasket)~txVolume+activeAddresses+marketcap, data=neo[train,])
+tree3 = rpart(factor(inbasket)~txVolume+activeAddresses+marketcap, data=ethereum[train,])
+tree4 = rpart(factor(inbasket)~txVolume+activeAddresses+marketcap, data=eos[train,])
+tree5 = rpart(factor(inbasket)~txVolume+activeAddresses+marketcap, data=stellar[train,])
+tree6 = rpart(factor(inbasket)~txVolume+activeAddresses+marketcap, data=litecoin[train,])
+tree7 = rpart(factor(inbasket)~txVolume+activeAddresses+marketcap, data=verge[train,])
+tree8 = rpart(factor(inbasket)~txVolume+activeAddresses+marketcap, data=vertcoin[train,])
+tree9 = rpart(factor(inbasket)~txVolume+activeAddresses+marketcap, data=cardano[train,])
+prp(tree, roundint = FALSE)
+prp(tree2, roundint = FALSE)
+prp(tree3, roundint = FALSE)
+prp(tree4, roundint = FALSE)
+prp(tree5, roundint = FALSE)
+prp(tree6, roundint = FALSE)
+prp(tree7, roundint = FALSE)
+prp(tree8, roundint = FALSE)
+prp(tree9, roundint = FALSE)
+```
+
+
+<!-- Misclassification Rates of Decision Trees -->
+```{r}
+tree.pred = predict(tree, newdata=bitcoin[-train,], type="class")
+with(bitcoin[-train,], table(tree.pred, bitcoin[-train,]$inbasket))
+tree.pred2 = predict(tree2, newdata=neo[-train,], type="class")
+with(neo[-train,], table(tree.pred2, neo[-train,]$inbasket))
+tree.pred3 = predict(tree3, newdata=ethereum[-train,], type="class")
+with(ethereum[-train,], table(tree.pred3, ethereum[-train,]$inbasket))
+tree.pred4 = predict(tree4, newdata=eos[-train,], type="class")
+with(eos[-train,], table(tree.pred4, eos[-train,]$inbasket))
+tree.pred5 = predict(tree5, newdata=stellar[-train,], type="class")
+with(stellar[-train,], table(tree.pred5, stellar[-train,]$inbasket))
+tree.pred6 = predict(tree6, newdata=litecoin[-train,], type="class")
+with(litecoin[-train,], table(tree.pred6, litecoin[-train,]$inbasket))
+tree.pred7 = predict(tree7, newdata=verge[-train,], type="class")
+with(verge[-train,], table(tree.pred7, verge[-train,]$inbasket))
+tree.pred8 = predict(tree8, newdata=vertcoin[-train,], type="class")
+with(vertcoin[-train,], table(tree.pred8, vertcoin[-train,]$inbasket))
+tree.pred9 = predict(tree9, newdata=cardano[-train,], type="class")
+with(cardano[-train,], table(tree.pred9, cardano[-train,]$inbasket))
+```
+<!-- Decision Tree Misclassification rate results -->
+<!-- Adding txVolume variable increases all of these. -->
+Bitcoin: 28 + 32 /135 = 0.4444
+Neo: 32 + 26 /135 = 0.4296
+Ethereum: 33 + 33 /135 = 0.4889
+EOS: 32 + 31 /135 = 0.4667
+Stellar: 30 + 49 /135 = 0.5852
+Litecoin: 31 + 27 /135 = 0.4296
+Verge: 30 + 33 /135 = 0.4667
+Vertcoin: 38 + 30 /135 = 0.5037
+Cardano: 45 + 14 /135 = 0.4370
+
+<!-- Barplot for all the volumes --> 
+```{r}
+barplot(c(0.4444, 0.4296, 0.4889, 0.4667, 0.5852, 0.4296, 0.4667, 0.5037, 0.4370), ylim=c(0,1), main="Misclassification Rate of Decision Trees", ylab="Rate",
+   xlab="Currency" , names.arg = c("Bitcoin", "Neo", "Eth", "EOS", "Stellar", "Lite", "Verge", "Vert", "Cardano"))
+```
+
+
+```{r}
+tree = rpart(inbasket~txVolume+activeAddresses+marketcap, data=bitcoin[train,])
+tree2 = rpart(inbasket~txVolume+activeAddresses+marketcap, data=neo[train,])
+tree3 = rpart(inbasket~txVolume+activeAddresses+marketcap, data=ethereum[train,])
+tree4 = rpart(inbasket~txVolume+activeAddresses+marketcap, data=eos[train,])
+tree5 = rpart(inbasket~txVolume+activeAddresses+marketcap, data=stellar[train,])
+tree6 = rpart(inbasket~txVolume+activeAddresses+marketcap, data=litecoin[train,])
+tree7 = rpart(inbasket~txVolume+activeAddresses+marketcap, data=verge[train,])
+tree8 = rpart(inbasket~txVolume+activeAddresses+marketcap, data=vertcoin[train,])
+tree9 = rpart(inbasket~txVolume+activeAddresses+marketcap, data=cardano[train,])
+prp(tree, roundint = FALSE)
+prp(tree2, roundint = FALSE)
+prp(tree3, roundint = FALSE)
+prp(tree4, roundint = FALSE)
+prp(tree5, roundint = FALSE)
+prp(tree6, roundint = FALSE)
+prp(tree7, roundint = FALSE)
+prp(tree8, roundint = FALSE)
+prp(tree9, roundint = FALSE)
+```
+
+
+
+
+
